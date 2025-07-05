@@ -1,30 +1,31 @@
-name: Daily AI Image Sender
+name: Daily AI Model Emailer
 
 on:
   schedule:
-    - cron: "30 2 * * *"  # Runs at 8:00 AM IST daily
-  workflow_dispatch:
+    - cron: '30 2 * * *'  # 8:00 AM IST (UTC+5:30 = 2:30 AM UTC)
+  workflow_dispatch:       # Allows you to run it manually too
 
 jobs:
-  run-script:
+  run-daily-mailer:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
 
-    - name: Install dependencies
-      run: pip install -r requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-    - name: Run main script
-      env:
-        HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
-        GMAIL_USER: ${{ secrets.GMAIL_USER }}
-        GMAIL_PASS: ${{ secrets.GMAIL_PASS }}
-        TO_EMAIL: ${{ secrets.TO_EMAIL }}
-      run: python main.py
+      - name: Run main script
+        env:
+          REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: python main.py

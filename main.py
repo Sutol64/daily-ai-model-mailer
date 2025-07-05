@@ -5,7 +5,7 @@ from email.mime.image import MIMEImage
 import os
 
 def generate_image():
-    API_URL = "https://api-inference.huggingface.co/models/stablediffusionapi/realistic-vision-v51"
+    API_URL = "https://api-inference.huggingface.co/models/dreamlike-art/dreamlike-photoreal-2.0"
     headers = {"Authorization": f"Bearer {os.environ['HUGGINGFACE_TOKEN']}"}
     
     prompt = "portrait of a beautiful woman with long wavy brown hair, soft smile, wearing a red dress, studio lighting, photorealistic"

@@ -19,17 +19,17 @@ def generate_image():
     replicate_client = replicate.Client(api_token=replicate_api)
 
     output = replicate_client.run(
-        "lucataco/realistic-vision-v5.1:29fc1740a7396f8f3cd90cdbdd4659eea8b3b380ef63fcfcd905f7f4c7d67d76",
-        input={
-            "prompt": "portrait of a beautiful confident woman, symmetrical face, detailed eyes, medium-long hair, natural skin tone, high detail, fashion look, realistic lighting",
-            "negative_prompt": "extra limbs, distorted hands, low quality, blur, cartoon",
-            "width": 512,
-            "height": 768,
-            "guidance_scale": 7,
-            "num_inference_steps": 30,
-            "seed": 12345  # Keeps image consistent
-        }
-    )
+    "stability-ai/sdxl:cae55f2b1b67e4dbb87646da6c26e88901ae25c111318a83ef4653b164b0c10e",
+    input={
+        "prompt": "portrait of a beautiful realistic woman, natural lighting, studio background, highly detailed, smiling, medium-long hair, symmetrical face",
+        "negative_prompt": "low quality, blur, distorted face, deformed limbs",
+        "width": 512,
+        "height": 768,
+        "num_inference_steps": 30,
+        "guidance_scale": 7.5,
+        "seed": 12345
+    }
+)
 
     if not output or not output[0].startswith("http"):
         raise Exception("Failed to generate image")

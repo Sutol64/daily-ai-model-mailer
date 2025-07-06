@@ -2,15 +2,24 @@ name: Daily AI Model Mailer
 
 on:
   schedule:
-    - cron: "30 2 * * *"  # Runs at 8:00 AM IST (UTC+5:30)
-  workflow_dispatch:  # Manual trigger
+    - cron: "30 2 * * *"  # 8:00 AM IST
+  workflow_dispatch:      # Manual trigger
 
 jobs:
   run:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+
+      - name: Cache HuggingFace models
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/huggingface
+          key: ${{ runner.os }}-hf-cache-${{ hashFiles('**/main.py') }}
+          restore-keys: |
+            ${{ runner.os }}-hf-cache-
 
       - name: Set up Python
         uses: actions/setup-python@v4

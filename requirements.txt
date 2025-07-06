@@ -1,6 +1,6 @@
 diffusers==0.17.1
 huggingface_hub==0.14.1
-transformers
+transformers==4.30.2
 torch
 safetensors
 Pillow

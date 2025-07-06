@@ -1,29 +1,34 @@
 from diffusers import StableDiffusionPipeline
-from transformers import pipeline
 import torch
 from PIL import Image
 import smtplib
 from email.message import EmailMessage
 import os
+import random
 
-# Load environment variables from GitHub secrets
+# Load environment variables
 EMAIL = os.getenv("GMAIL_USER")
 PASSWORD = os.getenv("GMAIL_PASS")
 RECIPIENT = os.getenv("TO_EMAIL")
 
-def generate_prompt_with_ai(seed_text="Generate a prompt for a fashion model image"):
-    print("🤖 Generating prompt using GPT-Neo...")
-    generator = pipeline("text-generation", model="EleutherAI/gpt-neo-125M")
-    result = generator(seed_text, max_length=30, do_sample=True, temperature=0.9)
-    prompt = result[0]['generated_text'].strip().replace("\n", " ")
-    print("🧠 Prompt:", prompt)
-    return prompt
+# Define a list of dynamic prompts
+PROMPTS = [
+    "portrait of a beautiful Indian model, white background, 8k, studio lighting",
+    "cinematic photo of a fashion model in natural light, high detail, Vogue style",
+    "close-up of a model with traditional Indian jewelry, bokeh background, sharp focus",
+    "elegant woman in a modern saree, editorial photo, clean white backdrop, 8k",
+    "model posing under soft lighting, high-resolution, professional photo shoot"
+]
 
 def generate_image(prompt, seed=1234):
     print("⏳ Loading Stable Diffusion model...")
     model_id = "runwayml/stable-diffusion-v1-5"
-    pipe = StableDiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.float32)
-    pipe = pipe.to("cpu")
+
+    pipe = StableDiffusionPipeline.from_pretrained(
+        model_id,
+        torch_dtype=torch.float32
+    )
+    pipe.enable_model_cpu_offload()
 
     print(f"🎨 Generating image for prompt: {prompt}")
     generator = torch.Generator().manual_seed(seed)
@@ -37,7 +42,7 @@ def send_email():
     msg["Subject"] = "Your Daily AI Model Image"
     msg["From"] = EMAIL
     msg["To"] = RECIPIENT
-    msg.set_content("Here is your daily AI-generated model image.")
+    msg.set_content("Here is your daily AI-generated model image.\n\nPrompt used:\n" + PROMPT_USED)
 
     with open("output.png", "rb") as img:
         msg.add_attachment(img.read(), maintype="image", subtype="png", filename="model.png")
@@ -49,7 +54,6 @@ def send_email():
     print("✅ Email sent to", RECIPIENT)
 
 if __name__ == "__main__":
-    prompt = generate_prompt_with_ai()
-    full_prompt = f"{prompt}, white background, ultra-detailed, studio light, 8K"
-    generate_image(prompt=full_prompt)
+    PROMPT_USED = random.choice(PROMPTS)
+    generate_image(prompt=PROMPT_USED)
     send_email()

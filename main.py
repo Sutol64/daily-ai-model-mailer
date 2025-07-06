@@ -11,6 +11,8 @@ EMAIL = os.getenv("GMAIL_USER")
 PASSWORD = os.getenv("GMAIL_PASS")
 RECIPIENT = os.getenv("TO_EMAIL")
 
+assert EMAIL and PASSWORD and RECIPIENT, "❌ Missing environment variables!"
+
 # Define a list of dynamic prompts
 PROMPTS = [
     "portrait of a beautiful Indian model, white background, 8k, studio lighting",
@@ -24,7 +26,16 @@ def generate_image(prompt, seed=1234):
     print("⏳ Loading Stable Diffusion model...")
     model_id = "runwayml/stable-diffusion-v1-5"
 
-    pipe = StableDiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.float32).to("cpu")
+    pipe = StableDiffusionPipeline.from_pretrained(
+        model_id,
+        torch_dtype=torch.float32
+    ).to("cpu")
+
+    # Optional offload attempt
+    try:
+        pipe.enable_model_cpu_offload()
+    except ImportError:
+        print("⚠️ accelerate not installed or usable; skipping model CPU offload.")
 
     print(f"🎨 Generating image for prompt: {prompt}")
     generator = torch.Generator().manual_seed(seed)
@@ -32,13 +43,13 @@ def generate_image(prompt, seed=1234):
     image.save("output.png")
     print("✅ Image saved as output.png")
 
-def send_email():
+def send_email(prompt_used):
     print("📧 Preparing email...")
     msg = EmailMessage()
     msg["Subject"] = "Your Daily AI Model Image"
     msg["From"] = EMAIL
     msg["To"] = RECIPIENT
-    msg.set_content("Here is your daily AI-generated model image.\n\nPrompt used:\n" + PROMPT_USED)
+    msg.set_content(f"Here is your daily AI-generated model image.\n\nPrompt used:\n{prompt_used}")
 
     with open("output.png", "rb") as img:
         msg.add_attachment(img.read(), maintype="image", subtype="png", filename="model.png")
@@ -50,6 +61,6 @@ def send_email():
     print("✅ Email sent to", RECIPIENT)
 
 if __name__ == "__main__":
-    PROMPT_USED = random.choice(PROMPTS)
-    generate_image(prompt=PROMPT_USED)
-    send_email()
+    selected_prompt = random.choice(PROMPTS)
+    generate_image(prompt=selected_prompt)
+    send_email(selected_prompt)

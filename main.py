@@ -1,24 +1,21 @@
-from diffusers import StableDiffusionPipeline
+import os
 import torch
-from PIL import Image
+from diffusers import StableDiffusionPipeline
+from instagrapi import Client
 import smtplib
 from email.message import EmailMessage
-import os
-from instagrapi import Client
 
-# Load environment variables
-EMAIL = os.getenv("GMAIL_USER")
-PASSWORD = os.getenv("GMAIL_PASS")
-RECIPIENT = os.getenv("TO_EMAIL")
-IG_USERNAME = os.getenv("IG_USERNAME")
-IG_PASSWORD = os.getenv("IG_PASSWORD")
+# Force torch to use CPU
+os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 def generate_image(prompt, seed=1234):
-    print("⏳ Loading Stable Diffusion model...")
+    print("⏳ Loading Stable Diffusion model on CPU...")
     model_id = "runwayml/stable-diffusion-v1-5"
-    pipe = StableDiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.float32)
-    pipe.enable_model_cpu_offload()
-    pipe = pipe.to("cpu")
+
+    pipe = StableDiffusionPipeline.from_pretrained(
+        model_id,
+        torch_dtype=torch.float32,
+    ).to("cpu")
 
     print(f"🎨 Generating image for prompt: {prompt}")
     generator = torch.Generator().manual_seed(seed)
@@ -26,32 +23,44 @@ def generate_image(prompt, seed=1234):
     image.save("output.png")
     print("✅ Image saved as output.png")
 
-def post_to_instagram(caption="Daily AI model image"):
-    print("📸 Posting to Instagram...")
+def post_to_instagram(username, password, caption=""):
     cl = Client()
-    cl.login(IG_USERNAME, IG_PASSWORD)
+    cl.login(username, password)
     cl.photo_upload("output.png", caption)
-    print("✅ Posted to Instagram")
+    print("📸 Posted to Instagram!")
 
-def send_email():
-    print("📧 Preparing email...")
+def send_email(subject, body, sender_email, sender_password, recipient_email):
     msg = EmailMessage()
-    msg["Subject"] = "Your Daily AI Model Image"
-    msg["From"] = EMAIL
-    msg["To"] = RECIPIENT
-    msg.set_content("Here is your daily AI-generated model image.")
+    msg.set_content(body)
+    msg["Subject"] = subject
+    msg["From"] = sender_email
+    msg["To"] = recipient_email
 
     with open("output.png", "rb") as img:
-        msg.add_attachment(img.read(), maintype="image", subtype="png", filename="model.png")
+        msg.add_attachment(img.read(), maintype="image", subtype="png", filename="output.png")
 
-    print("🚀 Sending email...")
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-        smtp.login(EMAIL, PASSWORD)
+        smtp.login(sender_email, sender_password)
         smtp.send_message(msg)
-    print("✅ Email sent to", RECIPIENT)
+    print("📧 Email sent successfully!")
 
 if __name__ == "__main__":
+    from os import getenv
+
     prompt = "portrait of a beautiful model, white background, studio light, 8k, ultra detailed"
+
     generate_image(prompt)
-    post_to_instagram(caption=prompt)
-    send_email()
+
+    post_to_instagram(
+        username=getenv("IG_USERNAME"),
+        password=getenv("IG_PASSWORD"),
+        caption=prompt
+    )
+
+    send_email(
+        subject="🖼️ Your AI Image of the Day",
+        body="See the attached image.",
+        sender_email=getenv("EMAIL_ADDRESS"),
+        sender_password=getenv("EMAIL_PASSWORD"),
+        recipient_email=getenv("RECIPIENT_EMAIL")
+    )

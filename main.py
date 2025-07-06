@@ -1,34 +1,22 @@
 from diffusers import StableDiffusionPipeline
 import torch
 from PIL import Image
-import smtplib
-from email.message import EmailMessage
+from instagrapi import Client
 import os
-import random
 
-# Load environment variables
-EMAIL = os.getenv("GMAIL_USER")
-PASSWORD = os.getenv("GMAIL_PASS")
-RECIPIENT = os.getenv("TO_EMAIL")
+# Load environment variables from GitHub secrets
+IG_USERNAME = os.getenv("IG_USERNAME")
+IG_PASSWORD = os.getenv("IG_PASSWORD")
 
-# Define a list of dynamic prompts
-PROMPTS = [
-    "portrait of a beautiful Indian model, white background, 8k, studio lighting",
-    "cinematic photo of a fashion model in natural light, high detail, Vogue style",
-    "close-up of a model with traditional Indian jewelry, bokeh background, sharp focus",
-    "elegant woman in a modern saree, editorial photo, clean white backdrop, 8k",
-    "model posing under soft lighting, high-resolution, professional photo shoot"
-]
-
-def generate_image(prompt, seed=1234):
+def generate_image(
+    prompt="portrait of a beautiful model, white background, studio light, 8k, ultra detailed",
+    seed=1234
+):
     print("⏳ Loading Stable Diffusion model...")
     model_id = "runwayml/stable-diffusion-v1-5"
-
-    pipe = StableDiffusionPipeline.from_pretrained(
-        model_id,
-        torch_dtype=torch.float32
-    )
+    pipe = StableDiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.float32, cache_dir="./model_cache")
     pipe.enable_model_cpu_offload()
+    pipe = pipe.to("cpu")
 
     print(f"🎨 Generating image for prompt: {prompt}")
     generator = torch.Generator().manual_seed(seed)
@@ -36,24 +24,18 @@ def generate_image(prompt, seed=1234):
     image.save("output.png")
     print("✅ Image saved as output.png")
 
-def send_email():
-    print("📧 Preparing email...")
-    msg = EmailMessage()
-    msg["Subject"] = "Your Daily AI Model Image"
-    msg["From"] = EMAIL
-    msg["To"] = RECIPIENT
-    msg.set_content("Here is your daily AI-generated model image.\n\nPrompt used:\n" + PROMPT_USED)
+def post_to_instagram():
+    print("📸 Logging into Instagram...")
+    cl = Client()
+    cl.login(IG_USERNAME, IG_PASSWORD)
 
-    with open("output.png", "rb") as img:
-        msg.add_attachment(img.read(), maintype="image", subtype="png", filename="model.png")
-
-    print("🚀 Sending email...")
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-        smtp.login(EMAIL, PASSWORD)
-        smtp.send_message(msg)
-    print("✅ Email sent to", RECIPIENT)
+    print("🚀 Posting to Instagram...")
+    cl.photo_upload(
+        path="output.png",
+        caption="Your daily AI-generated model photo. #AI #StableDiffusion"
+    )
+    print("✅ Posted successfully!")
 
 if __name__ == "__main__":
-    PROMPT_USED = random.choice(PROMPTS)
-    generate_image(prompt=PROMPT_USED)
-    send_email()
+    generate_image()
+    post_to_instagram()

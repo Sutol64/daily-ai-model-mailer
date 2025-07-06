@@ -1,9 +1,9 @@
-name: Daily AI Model Mailer & Instagram Poster
+name: Daily AI Model Mailer
 
 on:
   schedule:
-    - cron: "30 2 * * *"  # Runs at 8:00 AM IST
-  workflow_dispatch:
+    - cron: "30 2 * * *"  # Runs at 8:00 AM IST (UTC+5:30)
+  workflow_dispatch:  # Manual trigger
 
 jobs:
   run:
@@ -27,6 +27,4 @@ jobs:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_PASS: ${{ secrets.GMAIL_PASS }}
           TO_EMAIL: ${{ secrets.TO_EMAIL }}
-          IG_USERNAME: ${{ secrets.IG_USERNAME }}
-          IG_PASSWORD: ${{ secrets.IG_PASSWORD }}
         run: python main.py

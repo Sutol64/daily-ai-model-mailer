@@ -7,3 +7,4 @@ requests==2.31.0
 instagrapi==1.18.5
 accelerate==0.21.0
 numpy<2
+huggingface_hub==0.14.1

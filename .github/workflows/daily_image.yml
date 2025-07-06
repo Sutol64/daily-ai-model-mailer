@@ -1,25 +1,16 @@
-name: Daily AI Model Mailer
+name: Daily AI Model Mailer & Instagram Poster
 
 on:
   schedule:
-    - cron: "30 2 * * *"  # 8:00 AM IST
-  workflow_dispatch:      # Manual trigger
+    - cron: "30 2 * * *"  # Runs at 8:00 AM IST
+  workflow_dispatch:
 
 jobs:
   run:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
-      - name: Cache HuggingFace models
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/huggingface
-          key: ${{ runner.os }}-hf-cache-${{ hashFiles('**/main.py') }}
-          restore-keys: |
-            ${{ runner.os }}-hf-cache-
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -36,4 +27,6 @@ jobs:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_PASS: ${{ secrets.GMAIL_PASS }}
           TO_EMAIL: ${{ secrets.TO_EMAIL }}
+          IG_USERNAME: ${{ secrets.IG_USERNAME }}
+          IG_PASSWORD: ${{ secrets.IG_PASSWORD }}
         run: python main.py

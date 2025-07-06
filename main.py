@@ -1,4 +1,5 @@
 from diffusers import StableDiffusionPipeline
+from transformers import pipeline
 import torch
 from PIL import Image
 import smtplib
@@ -10,16 +11,21 @@ EMAIL = os.getenv("GMAIL_USER")
 PASSWORD = os.getenv("GMAIL_PASS")
 RECIPIENT = os.getenv("TO_EMAIL")
 
-def generate_image(
-    prompt="portrait of a beautiful model, white background, studio light, 8k, ultra detailed",
-    seed=1234
-):
-    print("⏳ Loading model...")
+def generate_prompt_with_ai(seed_text="Generate a prompt for a fashion model image"):
+    print("🤖 Generating prompt using GPT-Neo...")
+    generator = pipeline("text-generation", model="EleutherAI/gpt-neo-125M")
+    result = generator(seed_text, max_length=30, do_sample=True, temperature=0.9)
+    prompt = result[0]['generated_text'].strip().replace("\n", " ")
+    print("🧠 Prompt:", prompt)
+    return prompt
+
+def generate_image(prompt, seed=1234):
+    print("⏳ Loading Stable Diffusion model...")
     model_id = "runwayml/stable-diffusion-v1-5"
     pipe = StableDiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.float32)
     pipe = pipe.to("cpu")
 
-    print("🎨 Generating image...")
+    print(f"🎨 Generating image for prompt: {prompt}")
     generator = torch.Generator().manual_seed(seed)
     image = pipe(prompt, guidance_scale=7.5, generator=generator).images[0]
     image.save("output.png")
@@ -43,5 +49,7 @@ def send_email():
     print("✅ Email sent to", RECIPIENT)
 
 if __name__ == "__main__":
-    generate_image()
+    prompt = generate_prompt_with_ai()
+    full_prompt = f"{prompt}, white background, ultra-detailed, studio light, 8K"
+    generate_image(prompt=full_prompt)
     send_email()

@@ -1,14 +1,13 @@
-name: Daily AI Model Emailer
+name: Daily AI Model Mailer
 
 on:
   schedule:
-    - cron: '30 2 * * *'  # 8:00 AM IST (UTC+5:30 = 2:30 AM UTC)
-  workflow_dispatch:       # Allows you to run it manually too
+    - cron: "30 2 * * *"  # Runs at 8:00 AM IST (UTC+5:30)
+  workflow_dispatch:  # Manual trigger
 
 jobs:
-  run-daily-mailer:
+  run:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -16,16 +15,16 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: 3.10
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run main script
+      - name: Run script
         env:
-          REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
         run: python main.py

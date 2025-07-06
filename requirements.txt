@@ -1,8 +1,8 @@
-transformers==4.30.2
 diffusers==0.17.1
 huggingface_hub==0.14.1
-torch
-safetensors
-Pillow
-requests
-python-dotenv
+transformers==4.30.2
+torch==2.0.1
+safetensors==0.3.1
+Pillow==9.5.0
+requests==2.31.0
+instagrapi==1.18.5

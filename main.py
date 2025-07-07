@@ -28,9 +28,7 @@ def generate_image(prompt, seed=1234):
 
     pipe = StableDiffusionPipeline.from_pretrained(
         model_id,
-        torch_dtype=torch.float32,
-        device_map="cpu")
-    pipe = pipe.to("cpu")
+        torch_dtype=torch.float32).to("cpu") 
 
     # Optional offload attempt
     try:

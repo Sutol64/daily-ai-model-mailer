@@ -35,7 +35,7 @@ def generate_image(prompt, seed=1234):
     try:
         pipe.enable_model_cpu_offload()
     except ImportError:
-        print("⚠️ accelerate not installed or usable; skipping model CPU offload.")
+        print(""⚠️ CPU offload not available or failed."")
 
     print(f"🎨 Generating image for prompt: {prompt}")
     generator = torch.Generator().manual_seed(seed)
@@ -64,3 +64,4 @@ if __name__ == "__main__":
     selected_prompt = random.choice(PROMPTS)
     generate_image(prompt=selected_prompt)
     send_email(selected_prompt)
+    os.remove("output.png")

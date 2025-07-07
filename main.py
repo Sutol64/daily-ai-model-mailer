@@ -1,40 +1,32 @@
-from diffusers import StableDiffusionPipeline
-import torch
-from PIL import Image
-import smtplib
-from email.message import EmailMessage
-import os
 import random
+import smtplib
+import torch
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email.mime.text import MIMEText
+from email import encoders
+from diffusers import StableDiffusionPipeline
 
-# Load environment variables
-EMAIL = os.getenv("GMAIL_USER")
-PASSWORD = os.getenv("GMAIL_PASS")
-RECIPIENT = os.getenv("TO_EMAIL")
-
-assert EMAIL and PASSWORD and RECIPIENT, "❌ Missing environment variables!"
-
-# Define a list of dynamic prompts
-PROMPTS = [
+# Prompt list
+prompts = [
     "portrait of a beautiful Indian model, white background, 8k, studio lighting",
     "cinematic photo of a fashion model in natural light, high detail, Vogue style",
-    "close-up of a model with traditional Indian jewelry, bokeh background, sharp focus",
-    "elegant woman in a modern saree, editorial photo, clean white backdrop, 8k",
-    "model posing under soft lighting, high-resolution, professional photo shoot"
+    "studio portrait of a South Asian model, high-resolution, elegant lighting",
 ]
+
+# Pick a random prompt
+selected_prompt = random.choice(prompts)
 
 def generate_image(prompt, seed=1234):
     print("⏳ Loading Stable Diffusion model...")
     model_id = "runwayml/stable-diffusion-v1-5"
 
+    # Load model in CPU mode
     pipe = StableDiffusionPipeline.from_pretrained(
         model_id,
-        torch_dtype=torch.float32).to("cpu") 
-
-    # Optional offload attempt
-    try:
-        pipe.enable_model_cpu_offload()
-    except ImportError:
-        print("⚠️ CPU offload not available or failed.")
+        torch_dtype=torch.float32
+    )
+    pipe.to("cpu")
 
     print(f"🎨 Generating image for prompt: {prompt}")
     generator = torch.Generator().manual_seed(seed)
@@ -42,25 +34,36 @@ def generate_image(prompt, seed=1234):
     image.save("output.png")
     print("✅ Image saved as output.png")
 
-def send_email(prompt_used):
-    print("📧 Preparing email...")
-    msg = EmailMessage()
-    msg["Subject"] = "Your Daily AI Model Image"
-    msg["From"] = EMAIL
-    msg["To"] = RECIPIENT
-    msg.set_content(f"Here is your daily AI-generated model image.\n\nPrompt used:\n{prompt_used}")
+def send_email():
+    print("📧 Sending email...")
+    from_email = os.environ["GMAIL_USER"]
+    to_email = os.environ["TO_EMAIL"]
+    password = os.environ["GMAIL_PASS"]
 
-    with open("output.png", "rb") as img:
-        msg.add_attachment(img.read(), maintype="image", subtype="png", filename="model.png")
+    subject = "🖼️ AI Generated Model Image"
+    body = "Here is your AI-generated model image for today."
 
-    print("🚀 Sending email...")
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-        smtp.login(EMAIL, PASSWORD)
-        smtp.send_message(msg)
-    print("✅ Email sent to", RECIPIENT)
+    msg = MIMEMultipart()
+    msg["From"] = from_email
+    msg["To"] = to_email
+    msg["Subject"] = subject
+    msg.attach(MIMEText(body, "plain"))
 
+    filename = "output.png"
+    with open(filename, "rb") as f:
+        part = MIMEBase("application", "octet-stream")
+        part.set_payload(f.read())
+        encoders.encode_base64(part)
+        part.add_header("Content-Disposition", f"attachment; filename={filename}")
+        msg.attach(part)
+
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+        server.login(from_email, password)
+        server.send_message(msg)
+
+    print("✅ Email sent successfully.")
+
+# Main workflow
 if __name__ == "__main__":
-    selected_prompt = random.choice(PROMPTS)
     generate_image(prompt=selected_prompt)
-    send_email(selected_prompt)
-    os.remove("output.png")
+    send_email()

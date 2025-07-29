@@ -2,6 +2,10 @@ import os
 import random
 import smtplib
 import torch
+
+import pkg_resources
+print("Using diffusers version:", pkg_resources.get_distribution("diffusers").version)
+
 from diffusers import StableDiffusionPipeline
 from diffusers.utils import load_image
 from peft import PeftModel, PeftConfig

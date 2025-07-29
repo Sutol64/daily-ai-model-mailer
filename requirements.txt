@@ -1,7 +1,9 @@
-torch==2.1.2
-diffusers>=0.28.0
-transformers==4.40.1
-accelerate==0.29.3
-peft>=0.15.0
-safetensors==0.4.2
-numpy<2.0.0
+torch>=2.2.0
+transformers>=4.41.0
+diffusers>=0.26.3
+peft>=0.15.1
+accelerate>=0.30.1
+safetensors
+pillow
+requests
+python-dotenv

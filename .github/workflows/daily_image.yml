@@ -2,7 +2,7 @@ name: Daily AI Email Sender
 
 on:
   schedule:
-    - cron: "0 2 * * *" # Every day at 7:30 AM IST (2:00 UTC)
+    - cron: "0 2 * * *"  # Every day at 7:30 AM IST
   workflow_dispatch:
 
 jobs:
@@ -12,6 +12,7 @@ jobs:
       GMAIL_USER: ${{ secrets.GMAIL_USER }}
       GMAIL_PASS: ${{ secrets.GMAIL_PASS }}
       TO_EMAIL: ${{ secrets.TO_EMAIL }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
 
     steps:
       - uses: actions/checkout@v3

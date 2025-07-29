@@ -7,3 +7,5 @@ safetensors
 pillow
 requests
 python-dotenv
+huggingface_hub>=0.20.0
+scipy

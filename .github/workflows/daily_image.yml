@@ -1,21 +1,22 @@
-name: Daily AI Email Sender
+name: Daily AI Model Mailer
 
 on:
   schedule:
-    - cron: "0 2 * * *"  # Every day at 7:30 AM IST
+    - cron: "0 2 * * *" # 7:30 AM IST daily
   workflow_dispatch:
 
 jobs:
-  run-script:
+  send-image:
     runs-on: ubuntu-latest
     env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
       GMAIL_USER: ${{ secrets.GMAIL_USER }}
       GMAIL_PASS: ${{ secrets.GMAIL_PASS }}
       TO_EMAIL: ${{ secrets.TO_EMAIL }}
-      HF_TOKEN: ${{ secrets.HF_TOKEN }}
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repo
+        uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v4

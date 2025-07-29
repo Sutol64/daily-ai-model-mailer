@@ -2,47 +2,46 @@ import os
 import random
 import smtplib
 import torch
+from diffusers import StableDiffusionPipeline
+from diffusers.utils import load_image
+from peft import PeftModel, PeftConfig
+from transformers import CLIPTextModel, CLIPTokenizer
 from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
 from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
 from email import encoders
-from diffusers import StableDiffusionPipeline, DPMSolverMultistepScheduler
-from huggingface_hub import login
 
-# Login to Hugging Face using token from environment
-login(token=os.environ["HF_TOKEN"])
-
-# Prompt list
 prompts = [
-    "portrait of a beautiful woman, trending on instagram, studio light, detailed skin, masterpiece, wearing traditional Indian jewelry, Woman877",
-    "Indian model in a cinematic close-up, soft background, Woman877 character style, shallow depth of field, ultra detailed",
-    "realistic headshot of Woman877, elegant expression, glowing skin, ultra high resolution, professional lighting"
+    "photo of woman877, portrait, high detail, soft lighting, studio background, 8k",
+    "woman877 standing, natural lighting, photorealistic, high quality",
 ]
+
 selected_prompt = random.choice(prompts)
 
 def generate_image(prompt, seed=42):
-    print("⏳ Loading base Stable Diffusion model...")
-    base_model_id = "runwayml/stable-diffusion-v1-5"
+    model_id = "runwayml/stable-diffusion-v1-5"
     repo_id = "AiLotus/woman877-lora"
     lora_filename = "Woman877.v2.safetensors"
 
+    print("⏳ Loading base model...")
     pipe = StableDiffusionPipeline.from_pretrained(
-        base_model_id,
+        model_id,
         torch_dtype=torch.float32,
+        use_safetensors=True,
         safety_checker=None,
-        scheduler=DPMSolverMultistepScheduler.from_pretrained(base_model_id, subfolder="scheduler")
+        token=os.environ["HF_TOKEN"]
     )
     pipe.to("cpu")
 
-    # Load and apply LoRA weights
-    pipe.load_lora_weights(repo_id, weight_name=lora_filename)
+    print("🔗 Loading LoRA weights...")
+    pipe.load_lora_weights(repo_id, weight_name=lora_filename, token=os.environ["HF_TOKEN"])
     pipe.fuse_lora()
 
-    print(f"🎨 Generating image for prompt: {prompt}")
+    print(f"🎨 Generating image for: {prompt}")
     generator = torch.Generator().manual_seed(seed)
-    image = pipe(prompt, guidance_scale=7.5, generator=generator).images[0]
+    image = pipe(prompt, generator=generator, num_inference_steps=30, guidance_scale=7.5).images[0]
     image.save("output.png")
-    print("✅ Image saved as output.png")
+    print("✅ Saved image as output.png")
 
 def send_email():
     print("📧 Sending email...")
@@ -50,8 +49,8 @@ def send_email():
     to_email = os.environ["TO_EMAIL"]
     password = os.environ["GMAIL_PASS"]
 
-    subject = "🖼️ AI Generated Model Image"
-    body = "Here is your AI-generated Woman877 model image for today."
+    subject = "🖼️ Your AI Model Image"
+    body = "Here is your daily AI-generated model image."
 
     msg = MIMEMultipart()
     msg["From"] = from_email
@@ -59,19 +58,19 @@ def send_email():
     msg["Subject"] = subject
     msg.attach(MIMEText(body, "plain"))
 
-    with open("output.png", "rb") as f:
+    filename = "output.png"
+    with open(filename, "rb") as f:
         part = MIMEBase("application", "octet-stream")
         part.set_payload(f.read())
         encoders.encode_base64(part)
-        part.add_header("Content-Disposition", "attachment; filename=output.png")
+        part.add_header("Content-Disposition", f"attachment; filename={filename}")
         msg.attach(part)
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
         server.login(from_email, password)
         server.send_message(msg)
-
-    print("✅ Email sent successfully.")
+    print("✅ Email sent!")
 
 if __name__ == "__main__":
-    generate_image(prompt=selected_prompt)
+    generate_image(selected_prompt)
     send_email()

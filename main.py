@@ -6,28 +6,37 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email.mime.text import MIMEText
 from email import encoders
-from diffusers import StableDiffusionPipeline
+from diffusers import StableDiffusionPipeline, DPMSolverMultistepScheduler
+from huggingface_hub import login
+
+# Login to Hugging Face using token from environment
+login(token=os.environ["HF_TOKEN"])
 
 # Prompt list
 prompts = [
-    "portrait of a beautiful Indian model, white background, 8k, studio lighting",
-    "cinematic photo of a fashion model in natural light, high detail, Vogue style",
-    "studio portrait of a South Asian model, high-resolution, elegant lighting",
+    "portrait of a beautiful woman, trending on instagram, studio light, detailed skin, masterpiece, wearing traditional Indian jewelry, Woman877",
+    "Indian model in a cinematic close-up, soft background, Woman877 character style, shallow depth of field, ultra detailed",
+    "realistic headshot of Woman877, elegant expression, glowing skin, ultra high resolution, professional lighting"
 ]
-
-# Pick a random prompt
 selected_prompt = random.choice(prompts)
 
-def generate_image(prompt, seed=1234):
-    print("⏳ Loading Stable Diffusion model...")
-    model_id = "runwayml/stable-diffusion-v1-5"
+def generate_image(prompt, seed=42):
+    print("⏳ Loading base Stable Diffusion model...")
+    base_model_id = "runwayml/stable-diffusion-v1-5"
+    repo_id = "AiLotus/woman877-lora"
+    lora_filename = "Woman877.v2.safetensors"
 
-    # Load model in CPU mode
     pipe = StableDiffusionPipeline.from_pretrained(
-        model_id,
-        torch_dtype=torch.float32
+        base_model_id,
+        torch_dtype=torch.float32,
+        safety_checker=None,
+        scheduler=DPMSolverMultistepScheduler.from_pretrained(base_model_id, subfolder="scheduler")
     )
     pipe.to("cpu")
+
+    # Load and apply LoRA weights
+    pipe.load_lora_weights(repo_id, weight_name=lora_filename)
+    pipe.fuse_lora()
 
     print(f"🎨 Generating image for prompt: {prompt}")
     generator = torch.Generator().manual_seed(seed)
@@ -42,7 +51,7 @@ def send_email():
     password = os.environ["GMAIL_PASS"]
 
     subject = "🖼️ AI Generated Model Image"
-    body = "Here is your AI-generated model image for today."
+    body = "Here is your AI-generated Woman877 model image for today."
 
     msg = MIMEMultipart()
     msg["From"] = from_email
@@ -50,12 +59,11 @@ def send_email():
     msg["Subject"] = subject
     msg.attach(MIMEText(body, "plain"))
 
-    filename = "output.png"
-    with open(filename, "rb") as f:
+    with open("output.png", "rb") as f:
         part = MIMEBase("application", "octet-stream")
         part.set_payload(f.read())
         encoders.encode_base64(part)
-        part.add_header("Content-Disposition", f"attachment; filename={filename}")
+        part.add_header("Content-Disposition", "attachment; filename=output.png")
         msg.attach(part)
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
@@ -64,7 +72,6 @@ def send_email():
 
     print("✅ Email sent successfully.")
 
-# Main workflow
 if __name__ == "__main__":
     generate_image(prompt=selected_prompt)
     send_email()

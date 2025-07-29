@@ -1,65 +1,78 @@
-# main.py
 import os
 import torch
 from diffusers import StableDiffusionXLPipeline
+from diffusers.utils import load_image
+from huggingface_hub import login
 import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
-from email import encoders
+from email.message import EmailMessage
 from datetime import datetime
 
-def generate_image(prompt):
-    HF_TOKEN = os.getenv("HF_TOKEN")
-    
-    pipe = StableDiffusionXLPipeline.from_pretrained(
-        "stabilityai/stable-diffusion-xl-base-1.0",
-        torch_dtype=torch.float16,
-        use_safetensors=True,
-        token=HF_TOKEN,
-        variant="fp16"
-    ).to("cuda" if torch.cuda.is_available() else "cpu")
+# === CONFIG ===
+MODEL_ID = "stabilityai/stable-diffusion-xl-base-1.0"
+LORA_PATH = "AiLotus/woman877-lora/Woman877.v2.safetensors"
+OUTPUT_IMAGE = "output.png"
+PROMPT = "portrait of a beautiful Indian woman, looking at camera, ultra detailed, natural skin texture, soft lighting"
+NEGATIVE_PROMPT = "blurry, low quality, watermark"
 
+# === LOGIN to Hugging Face ===
+login(token=os.environ["HF_TOKEN"])
+
+# === GENERATE IMAGE ===
+def generate_image(prompt):
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    pipe = StableDiffusionXLPipeline.from_pretrained(
+        MODEL_ID,
+        torch_dtype=torch.float32,  # fallback to float32 for CPU
+    )
+    pipe = pipe.to(device)
+
+    # Load LoRA weights
     pipe.load_lora_weights(
-        pretrained_model_name_or_path="AiLotus/woman877-lora",
-        weight_name="Woman877.v2.safetensors",
-        token=HF_TOKEN,
+        pretrained_model_name_or_path_or_dict=MODEL_ID,
+        weight_name=LORA_PATH
     )
 
+    # Enable LoRA
     pipe.fuse_lora()
-    pipe.set_progress_bar_config(disable=True)
 
-    image = pipe(prompt=prompt).images[0]
-    filename = f"output_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
-    image.save(filename)
-    return filename
+    image = pipe(
+        prompt=prompt,
+        negative_prompt=NEGATIVE_PROMPT,
+        num_inference_steps=30,
+        guidance_scale=7.5
+    ).images[0]
 
+    image.save(OUTPUT_IMAGE)
+    return OUTPUT_IMAGE
+
+# === SEND EMAIL ===
 def send_email(image_path):
-    from_email = os.getenv("GMAIL_USER")
-    password = os.getenv("GMAIL_PASS")
-    to_email = os.getenv("TO_EMAIL")
+    user = os.environ["GMAIL_USER"]
+    password = os.environ["GMAIL_PASS"]
+    to_email = os.environ["TO_EMAIL"]
 
-    msg = MIMEMultipart()
-    msg['From'] = from_email
-    msg['To'] = to_email
-    msg['Subject'] = "Your Daily AI-Generated Image"
+    msg = EmailMessage()
+    msg["Subject"] = f"Daily AI Image - {datetime.now().strftime('%Y-%m-%d')}"
+    msg["From"] = user
+    msg["To"] = to_email
+    msg.set_content("Attached is your daily AI-generated image.")
 
-    with open(image_path, 'rb') as f:
-        mime = MIMEBase('image', 'png', filename=image_path)
-        mime.add_header('Content-Disposition', 'attachment', filename=image_path)
-        mime.set_payload(f.read())
-        encoders.encode_base64(mime)
-        msg.attach(mime)
+    with open(image_path, "rb") as img_file:
+        img_data = img_file.read()
+        msg.add_attachment(img_data, maintype="image", subtype="png", filename=image_path)
 
-    server = smtplib.SMTP('smtp.gmail.com', 587)
-    server.starttls()
-    server.login(from_email, password)
-    server.send_message(msg)
-    server.quit()
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+        smtp.login(user, password)
+        smtp.send_message(msg)
 
+# === MAIN ===
 def main():
-    prompt = "portrait of a beautiful woman, 1024x1024, realistic lighting"
-    image_path = generate_image(prompt)
+    print("Generating image...")
+    image_path = generate_image(PROMPT)
+    print("Sending email...")
     send_email(image_path)
+    print("Done!")
 
 if __name__ == "__main__":
     main()

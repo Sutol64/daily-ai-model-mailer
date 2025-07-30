@@ -1,48 +1,36 @@
 import os
-from diffusers import StableDiffusionXLPipeline
 import torch
+from diffusers import StableDiffusionPipeline
 from datetime import datetime
+from huggingface_hub import login
 
-PROMPT = "A beautiful Indian woman in traditional attire, 4K, studio lighting"
+login(token=os.environ["HF_TOKEN"])
+
+MODEL_ID = "runwayml/stable-diffusion-v1-5"
+LORA_REPO = "AiLotus/woman877-lora"  # Must be SD 1.5 compatible
+LORA_FILE = "Woman877.v1_sd15.safetensors"  # Must match the LoRA format
+PROMPT = "beautiful Indian woman, ultra-detailed portrait, 4K, soft light"
 OUTPUT_DIR = "outputs"
-LORA_REPO = "AiLotus/woman877-lora"
-LORA_FILENAME = "Woman877.v2.safetensors"
 
-def generate_image(prompt: str) -> str:
+def generate_image(prompt):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     dtype = torch.float16 if device == "cuda" else torch.float32
 
-    print(f"Using device: {device} with dtype: {dtype}")
-
-    # Load pipeline
-    pipe = StableDiffusionXLPipeline.from_pretrained(
-        "stabilityai/stable-diffusion-xl-base-1.0",
+    pipe = StableDiffusionPipeline.from_pretrained(
+        MODEL_ID,
         torch_dtype=dtype,
-        variant="fp16" if device == "cuda" else None,
-        use_safetensors=True
-    )
-    pipe.to(device)
+        safety_checker=None,
+    ).to(device)
 
-    # Load LoRA
-    print("Loading LoRA weights...")
-    pipe.load_lora_weights(LORA_REPO, weight_name=LORA_FILENAME)
+    pipe.load_lora_weights(LORA_REPO, weight_name=LORA_FILE)
     pipe.fuse_lora()
 
-    # Generate image
-    print("Generating image...")
     image = pipe(prompt=prompt).images[0]
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     filename = f"{OUTPUT_DIR}/image_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
     image.save(filename)
-
-    print(f"Image saved to: {filename}")
     return filename
 
-def main():
-    print("Starting image generation pipeline...")
-    generate_image(PROMPT)
-    print("Done.")
-
 if __name__ == "__main__":
-    main()
+    generate_image(PROMPT)

@@ -1,36 +1,42 @@
-import os
 import torch
 from diffusers import StableDiffusionPipeline
-from datetime import datetime
 from huggingface_hub import login
+import random
+from datetime import datetime
 
-login(token=os.environ["HF_TOKEN"])
+# Authenticate with Hugging Face token from secrets (replace in GitHub Actions)
+HUGGINGFACE_TOKEN = os.environ["HUGGINGFACE_TOKEN"]
+login(HUGGINGFACE_TOKEN)
 
+# === CONFIG ===
 MODEL_ID = "runwayml/stable-diffusion-v1-5"
-LORA_REPO = "AiLotus/woman877-lora"  # Must be SD 1.5 compatible
-LORA_FILE = "Woman877.v1_sd15.safetensors"  # Must match the LoRA format
-PROMPT = "beautiful Indian woman, ultra-detailed portrait, 4K, soft light"
-OUTPUT_DIR = "outputs"
+LORA_REPO = "AiLotus/woman877-lora"
+LORA_FILE = "Woman877.v2.safetensors"
+PROMPTS = [
+    "beautiful Indian woman, traditional attire, DSLR photo, portrait, high quality",
+    "fashion model in sari, cinematic lighting, soft focus, Vogue style",
+    "young woman, golden hour, outdoors, natural smile, realistic",
+]
 
 def generate_image(prompt):
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    dtype = torch.float16 if device == "cuda" else torch.float32
-
+    print(f"Generating image with prompt: {prompt}")
+    
+    # Load pipeline
     pipe = StableDiffusionPipeline.from_pretrained(
         MODEL_ID,
-        torch_dtype=dtype,
-        safety_checker=None,
-    ).to(device)
+        torch_dtype=torch.float32,
+        safety_checker=None
+    ).to("cpu")
 
+    # Load LoRA weights
     pipe.load_lora_weights(LORA_REPO, weight_name=LORA_FILE)
-    pipe.fuse_lora()
 
-    image = pipe(prompt=prompt).images[0]
-
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    filename = f"{OUTPUT_DIR}/image_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
-    image.save(filename)
-    return filename
+    # Generate image
+    image = pipe(prompt).images[0]
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    image.save(f"output-{timestamp}.png")
+    print("✅ Image saved successfully.")
 
 if __name__ == "__main__":
-    generate_image(PROMPT)
+    selected_prompt = random.choice(PROMPTS)
+    generate_image(selected_prompt)

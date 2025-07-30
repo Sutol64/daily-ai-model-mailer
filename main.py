@@ -1,6 +1,5 @@
 import os
 from diffusers import StableDiffusionXLPipeline
-from diffusers.utils import load_image
 import torch
 from datetime import datetime
 
@@ -10,20 +9,23 @@ LORA_REPO = "AiLotus/woman877-lora"
 LORA_FILENAME = "Woman877.v2.safetensors"
 
 def generate_image(prompt: str) -> str:
-    print("Loading SDXL pipeline...")
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    dtype = torch.float16 if device == "cuda" else torch.float32
+
+    print(f"Using device: {device} with dtype: {dtype}")
+
+    # Load pipeline
     pipe = StableDiffusionXLPipeline.from_pretrained(
         "stabilityai/stable-diffusion-xl-base-1.0",
-        torch_dtype=torch.float16,
-        variant="fp16",
+        torch_dtype=dtype,
+        variant="fp16" if device == "cuda" else None,
         use_safetensors=True
     )
-    pipe.to("cuda" if torch.cuda.is_available() else "cpu")
+    pipe.to(device)
 
     # Load LoRA
     print("Loading LoRA weights...")
     pipe.load_lora_weights(LORA_REPO, weight_name=LORA_FILENAME)
-
-    # Use LoRA
     pipe.fuse_lora()
 
     # Generate image
@@ -39,7 +41,7 @@ def generate_image(prompt: str) -> str:
 
 def main():
     print("Starting image generation pipeline...")
-    path = generate_image(PROMPT)
+    generate_image(PROMPT)
     print("Done.")
 
 if __name__ == "__main__":

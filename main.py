@@ -1,39 +1,34 @@
 import os
 import torch
-from diffusers import StableDiffusionXLPipeline
-from diffusers.utils import load_image
+from diffusers import StableDiffusionPipeline
 from huggingface_hub import login
-import smtplib
 from email.message import EmailMessage
 from datetime import datetime
+import smtplib
 
 # === CONFIG ===
-MODEL_ID = "stabilityai/stable-diffusion-xl-base-1.0"
-LORA_PATH = "AiLotus/woman877-lora/Woman877.v2.safetensors"
-OUTPUT_IMAGE = "output.png"
-PROMPT = "portrait of a beautiful Indian woman, looking at camera, ultra detailed, natural skin texture, soft lighting"
+MODEL_ID = "runwayml/stable-diffusion-v1-5"
+LORA_REPO = "AiLotus/woman877-lora"
+LORA_FILENAME = "Woman877.v2.safetensors"
+PROMPT = "portrait of a beautiful Indian woman, ultra realistic, soft lighting, looking at camera"
 NEGATIVE_PROMPT = "blurry, low quality, watermark"
+OUTPUT_IMAGE = "output.png"
 
-# === LOGIN to Hugging Face ===
+# === AUTH ===
 login(token=os.environ["HF_TOKEN"])
 
 # === GENERATE IMAGE ===
 def generate_image(prompt):
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    pipe = StableDiffusionXLPipeline.from_pretrained(
+    pipe = StableDiffusionPipeline.from_pretrained(
         MODEL_ID,
-        torch_dtype=torch.float32,  # fallback to float32 for CPU
+        torch_dtype=torch.float16 if device == "cuda" else torch.float32,
     )
     pipe = pipe.to(device)
 
-    # Load LoRA weights
-    pipe.load_lora_weights(
-        pretrained_model_name_or_path_or_dict=MODEL_ID,
-        weight_name=LORA_PATH
-    )
-
-    # Enable LoRA
+    # Load LoRA
+    pipe.load_lora_weights(LORA_REPO, weight_name=LORA_FILENAME)
     pipe.fuse_lora()
 
     image = pipe(
@@ -48,30 +43,25 @@ def generate_image(prompt):
 
 # === SEND EMAIL ===
 def send_email(image_path):
-    user = os.environ["GMAIL_USER"]
-    password = os.environ["GMAIL_PASS"]
-    to_email = os.environ["TO_EMAIL"]
-
     msg = EmailMessage()
     msg["Subject"] = f"Daily AI Image - {datetime.now().strftime('%Y-%m-%d')}"
-    msg["From"] = user
-    msg["To"] = to_email
+    msg["From"] = os.environ["GMAIL_USER"]
+    msg["To"] = os.environ["TO_EMAIL"]
     msg.set_content("Attached is your daily AI-generated image.")
 
-    with open(image_path, "rb") as img_file:
-        img_data = img_file.read()
-        msg.add_attachment(img_data, maintype="image", subtype="png", filename=image_path)
+    with open(image_path, "rb") as f:
+        msg.add_attachment(f.read(), maintype="image", subtype="png", filename=image_path)
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-        smtp.login(user, password)
+        smtp.login(os.environ["GMAIL_USER"], os.environ["GMAIL_PASS"])
         smtp.send_message(msg)
 
 # === MAIN ===
 def main():
     print("Generating image...")
-    image_path = generate_image(PROMPT)
+    path = generate_image(PROMPT)
     print("Sending email...")
-    send_email(image_path)
+    send_email(path)
     print("Done!")
 
 if __name__ == "__main__":
